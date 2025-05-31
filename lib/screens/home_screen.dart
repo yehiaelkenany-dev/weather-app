@@ -1,11 +1,12 @@
-
+import 'dart:async';
+import 'dart:ui'; // Import for ImageFilter.blur
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
-import 'package:weather_app/api/api.dart';
 import 'package:weather_app/constants.dart';
-
+import '../blocs/weather_bloc/weather_bloc.dart';
 import '../components/weather_item.dart';
 import 'details_screen.dart';
 
@@ -19,411 +20,591 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final AppColors appColors = AppColors();
   final TextEditingController _cityController = TextEditingController();
-  final _api = Api();
-  String location = 'London';
-  String weatherIcon = 'heavycloud.png';
-  int temperature = 0;
-  int windSpeed = 0;
-  int humidity = 0;
-  int cloud = 0;
-  String currentDate = '';
+  bool _showBlurOverlay = true;
+  Timer? _blurTimer; // Timer to control the duration of the blur
+  // Removed Api _api declaration here, as it's provided by RepositoryProvider
+  // in main.dart and read via context.
 
-  List hourlyWeatherForecast = [];
-  List dailyWeatherForecast = [];
+  // Removed old state variables (location, temperature, etc.) and fetchWeatherData method
+  // as they are now managed by WeatherBloc.
 
-  String currentWeatherStatus = '';
+  // The getShortLocationName is still useful as a static helper
+  // static String getShortLocationName(String s) {
+  //   List<String> wordList = s.split(" ");
+  //   if (wordList.isNotEmpty) {
+  //     if (wordList.length > 1) {
+  //       return "${wordList[0]} ${wordList[1]}";
+  //     } else {
+  //       return wordList[0];
+  //     }
+  //   } else {
+  //     return " ";
+  //   }
+  // }
 
-
-  void fetchWeatherData(String searchText) async {
-    try {
-      var searchResult = await _api.searchLocation(searchText);
-      if (searchResult != null && searchResult.isNotEmpty) {
-        final Map<String, dynamic> firstLocationData = searchResult[0];
-
-
-        print(firstLocationData);
-
-        setState(() {
-          location = getShortLocationName(firstLocationData['name']);
-          print(location);
-        });
-
-        var forecastData = await _api.fetchForecast(firstLocationData['name'], 7); // Assuming you want 7 days forecast
-        if (forecastData != null) {
-          var current = forecastData['current'];
-          var forecastday = forecastData['forecast']['forecastday']; // Get the forecast day array
-          if (current != null && forecastday != null) {
-            setState(() {
-              temperature = (current['temp_c'] as double).toInt();
-              windSpeed = (current['wind_kph'] as double).toInt();
-              humidity = current['humidity'] as int;
-              cloud = current['cloud'] as int;           // Explicitly cast to int
-              currentWeatherStatus = current['condition']['text'];
-              // Get the date string from the first forecast day
-              String dateString = forecastday[0]['date']; // e.g., "2025-05-28"
-
-              // Parse the date string into a DateTime object
-              DateTime dateTime = DateTime.parse(dateString);
-              currentDate = DateFormat('EEEE, d MMMM yyyy').format(dateTime);
-
-              hourlyWeatherForecast = forecastday[0]['hour'];
-              dailyWeatherForecast = forecastday;
-              // weatherIcon = forecastData['current']['condition']['icon'];
-              print(dailyWeatherForecast);
-              print(forecastData);
-              print(current);
-              print(currentDate);
-              print(currentWeatherStatus);
-              weatherIcon = "${currentWeatherStatus.replaceAll(' ', '').toLowerCase()}.png";
-              print(weatherIcon);
-              print(windSpeed);
-            });
-          }
-        } else {
-          print("Failed to load forecast data");
-        }
-
-      } else {
-        print('No data returned from API.');
-      }
-
-    } catch (e) {
-      print('Error fetching weather data: $e');
-
-    }
-  }
-
-  static String getShortLocationName(String s) {
-    List<String> wordList = s.split(" ");
-
-    if (wordList.isNotEmpty) {
-      if (wordList.length > 1) {
-        return "${wordList[0]} ${wordList[1]}";
-      } else {
-        return wordList[0];
-      }
-    } else {
-      return " ";
-    }
-  }
-  
   @override
   void initState() {
-    fetchWeatherData(location);
     super.initState();
+    // Dispatch the initial event to fetch weather for a default location
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<WeatherBloc>().add(const FetchWeather('London'));
+    });
+
+    _blurTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) { // Check if the widget is still mounted before calling setState
+        setState(() {
+          _showBlurOverlay = false;
+        });
+      }
+    });
   }
 
-  @override
-  Widget build(BuildContext context) {
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual, overlays: SystemUiOverlay.values);
-    final _deviceHeight = MediaQuery.sizeOf(context).height;
-    final _deviceWidth = MediaQuery.sizeOf(context).width;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Container(
-        height: _deviceHeight,
-        width: _deviceWidth,
-        padding: const EdgeInsets.only(top: 70, left: 10, right: 10),
-        color: AppColors.primaryColor.withValues(alpha: .5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-              height: _deviceHeight * .7,
-              decoration: BoxDecoration(
-                gradient: AppColors.linearGradientBlue,
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryColor.withValues(alpha: .5),
-                    spreadRadius: 5,
-                    blurRadius: 7,
-                    offset: const Offset(0, 3)
-                  ),
-                ],
-                borderRadius: BorderRadius.circular(20),
+  void _showCitySearchModal(BuildContext context) {
+    showMaterialModalBottomSheet(
+      context: context,
+      builder: (context) => SingleChildScrollView(
+        controller: ModalScrollController.of(context),
+        child: Container(
+          height: MediaQuery.sizeOf(context).height * 0.2,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 10,
+          ),
+          child: Column(
+            children: [
+              SizedBox(
+                width: 70,
+                child: Divider(
+                  thickness: 3.5,
+                  color: AppColors.primaryColor,
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        "assets/images/menu.png",
-                        width: 40,
-                        height: 40,
-                      ),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Image.asset("assets/images/pin.png", width: 20,),
-                          const SizedBox(
-                            width: 4,
-                          ),
-                          Text(location, style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                          ),),
-                          IconButton(onPressed: () {
-                            _cityController.clear();
-                            showMaterialModalBottomSheet(context: context, builder: (context) => SingleChildScrollView(
-                              controller: ModalScrollController.of(context),
-                              child: Container(
-                                height: _deviceHeight * 0.2,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 10,
-                                ),
-                                child: Column(
-                                  children: [
-                                    SizedBox(
-                                      width: 70,
-                                      child: Divider(
-                                        thickness: 3.5,
-                                        color: AppColors.primaryColor,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10,),
-                                    TextField(
-                                      onChanged: (searchText) {
-                                        fetchWeatherData(searchText);
-                                      },
-                                      controller: _cityController,
-                                      autofocus: true,
-                                      decoration: InputDecoration(
-                                          prefixIcon: Icon(Icons.search, color: AppColors.primaryColor,),
-                                          suffixIcon: GestureDetector(
-                                            onTap: () => _cityController.clear(),
-                                            child: Icon(Icons.close, color: AppColors.primaryColor,),
-                                          ),
-                                          hintText: 'Search city e.g. Cairo',
-                                          focusedBorder: OutlineInputBorder(
-                                            borderSide: BorderSide(
-                                              color: AppColors.primaryColor,
-                                            ),
-                                            borderRadius: BorderRadius.circular(10),
-                                          )
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            );
-                          }, icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white,))
-                        ],
-                      ),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.asset('assets/images/profile.png', width: 40, height: 40,),
-                      ),
-                    ],
+              const SizedBox(height: 10),
+              TextField(
+                onChanged: (searchText) {
+                  if (searchText.isNotEmpty) {
+                    context.read<WeatherBloc>().add(FetchWeather(searchText));
+                    // When a new search is initiated, you might want to show the blur again
+                    // and reset the timer.
+                    setState(() {
+                      _showBlurOverlay = true;
+                      _blurTimer?.cancel(); // Cancel previous timer
+                      _blurTimer = Timer(const Duration(seconds: 2), () {
+                        if (mounted) {
+                          setState(() {
+                            _showBlurOverlay = false;
+                          });
+                        }
+                      });
+                    });
+                  }
+                },
+                controller: _cityController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.search, color: AppColors.primaryColor),
+                  suffixIcon: GestureDetector(
+                    onTap: () => _cityController.clear(),
+                    child: Icon(Icons.close, color: AppColors.primaryColor),
                   ),
-                  SizedBox(
-                    height: 160,
-                    child: Image.asset("assets/images/$weatherIcon"),
-                  ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0),
-                        child: Text(temperature.toString(),
-                        style: TextStyle(
-                          fontSize: 80,
-                          fontWeight: FontWeight.bold,
-                          foreground: Paint()..shader = appColors.shader,
-                        ),
-                        ),
-                      ),
-                      Text('°C',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                          foreground: Paint()..shader = appColors.shader,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(currentWeatherStatus, style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 20,
-
-                  ),),
-                  Text(currentDate, style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 20,
-
-                  ),),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: const Divider(
-                      color: Colors.white70,
+                  hintText: 'Search city e.g. Cairo',
+                  focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(
+                      color: AppColors.primaryColor,
                     ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 40),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        WeatherItem(
-                          value: windSpeed, unit: ' km/h', imageURL: 'assets/images/windspeed.png',),
-                        WeatherItem(value: humidity, unit: ' %', imageURL: 'assets/images/humidity.png',),
-                        WeatherItem(value: cloud, unit: ' %', imageURL: 'assets/images/cloud.png',),
-
-                      ],
-                    ),
-                  ),
-
-                ],
+                ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.only(top: 10),
-              height: _deviceHeight * .20,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'Today', style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-
-                      ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          // Make sure dailyWeatherForecast is not empty before navigating,
-                          // or handle the empty case gracefully in DetailsScreen.
-                          if (dailyWeatherForecast.isNotEmpty) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => DetailsScreen(
-                                  dailyWeatherForecast: dailyWeatherForecast, // <--- Pass the data here!
-                                ),
-                              ),
-                            );
-                          } else {
-                            // Optionally show a message if data isn't ready
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Weather data not loaded yet. Please wait.')),
-                            );
-                          }
-                        },
-                        child: Text('Forecasts',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                            color: AppColors.primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(
-                    height: 8,
-                  ),
-                  SizedBox(
-                    height: 140,
-                    child: ListView.builder(
-                      itemCount: hourlyWeatherForecast.length,
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      itemBuilder: (context, index) {
-                        final hourlyData = hourlyWeatherForecast[index] as Map<String, dynamic>;
-
-                        // Parse the full time string from the API (e.g., "2025-05-28 14:00")
-                        DateTime forecastDateTime = DateTime.parse(hourlyData['time']);
-
-                        // Format to get just the hour (e.g., "14:00" or "2 PM")
-                        String formattedTime = DateFormat('h a').format(forecastDateTime); // e.g., "2 PM"
-
-                        // Get temperature for the hour
-                        int hourlyTemp = (hourlyData['temp_c'] as double).toInt();
-
-                        // Get icon for the hour
-                        String hourlyIcon = "${(hourlyData['condition']['text'] as String).replaceAll(' ', '').toLowerCase()}.png";
-
-                        // Determine if this is the current hour for highlighting
-                        bool isCurrentHour = forecastDateTime.hour == DateTime.now().hour;
-
-                        return Container(
-                          padding: const EdgeInsets.symmetric(vertical: 15),
-                          margin: const EdgeInsets.only(right: 20),
-                          width: 65,
-                          decoration: BoxDecoration(
-                            color: isCurrentHour ? Colors.white : AppColors.primaryColor,
-                            borderRadius: const BorderRadius.all(Radius.circular(50)),
-                            boxShadow: [
-                              BoxShadow(
-                                offset: const Offset(0, 1),
-                                blurRadius: 5,
-                                color: AppColors.primaryColor.withValues(alpha: .5),
-                              ),
-
-                            ]
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                formattedTime.toString(),
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  color: AppColors.greyColor,
-                                  fontWeight: FontWeight.w500
-                                ),
-                              ),
-                              Image.asset('assets/images/$hourlyIcon', width: 20,),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(hourlyTemp.toString(),
-                                  style: TextStyle(
-                                    color: AppColors.greyColor,
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  ),
-                                  Text('°C',
-                                    style: TextStyle(
-                                      color: AppColors.greyColor,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w600,
-                                      fontFeatures: const [
-                                        FontFeature.enable('subs'),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              )
-
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  )
-
-                ],
-              ),
-            ),
-
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
+  @override
+  void dispose() {
+    _blurTimer?.cancel(); // Cancel the timer to prevent memory leaks
+    _cityController.dispose(); // Don't forget to dispose controllers
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: SystemUiOverlay.values);
+    final deviceHeight = MediaQuery
+        .sizeOf(context)
+        .height;
+    final deviceWidth = MediaQuery
+        .sizeOf(context)
+        .width;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: BlocBuilder<WeatherBloc, WeatherState>(
+        builder: (context, state) {
+          // You can still use isLoading for other UI elements if needed,
+          // but for the blur, we'll rely on _showBlurOverlay now.
+          // bool isLoading = state is WeatherLoading || state is WeatherInitial;
+
+          // If the state changes to WeatherLoaded, and the timer hasn't already hidden the blur,
+          // you might want to hide it immediately, or let the timer run its course.
+          // For a smoother transition, letting the timer run is fine, or you could do:
+          if (state is WeatherLoaded && _showBlurOverlay) {
+            _blurTimer?.cancel(); // Stop the timer if data loads faster
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _showBlurOverlay = false;
+                });
+              }
+            });
+          }
+
+
+          return Stack(
+            children: [
+              // Main content of the screen
+              Container(
+                height: deviceHeight,
+                width: deviceWidth,
+                padding: const EdgeInsets.only(top: 70, left: 10, right: 10),
+                color: AppColors.primaryColor.withValues(alpha: .5),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 10, horizontal: 10),
+                      height: deviceHeight * .7,
+                      decoration: BoxDecoration(
+                        gradient: AppColors.linearGradientBlue,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primaryColor.withValues(alpha: .5),
+                            spreadRadius: 5,
+                            blurRadius: 7,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: (state is WeatherLoaded)
+                          ? _buildWeatherContent(state, deviceWidth)
+                          : _buildPlaceholderContent(),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.only(top: 10),
+                      height: deviceHeight * .20,
+                      child: (state is WeatherLoaded)
+                          ? _buildForecastSection(state)
+                          : _buildPlaceholderForecastSection(),
+                    ),
+                  ],
+                ),
+              ),
+              // Blur effect overlay (only show if _showBlurOverlay is true)
+              if (_showBlurOverlay) // Condition now uses _showBlurOverlay
+                Positioned.fill(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: 5.0, // Adjust blur intensity
+                      sigmaY: 5.0, // Adjust blur intensity
+                    ),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.3), // Optional: add a slight dark overlay
+                      // Removed alignment and CircularProgressIndicator
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // Helper method for the main weather display
+  Widget _buildWeatherContent(WeatherLoaded state, double deviceWidth) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Image.asset(
+              "assets/images/menu.png",
+              width: 40,
+              height: 40,
+            ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Image.asset("assets/images/pin.png", width: 20),
+                const SizedBox(width: 4),
+                Text(
+                  state.location, // Data from BLoC state
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => _showCitySearchModal(context),
+                  icon: const Icon(Icons.keyboard_arrow_down,
+                      color: Colors.white),
+                ),
+              ],
+            ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                'assets/images/profile.png',
+                width: 40,
+                height: 40,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(
+          height: 160,
+          child: Image.asset(
+              "assets/images/${state.weatherIcon}"), // Data from BLoC state
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: Text(
+                state.temperature.toString(), // Data from BLoC state
+                style: TextStyle(
+                  fontSize: 80,
+                  fontWeight: FontWeight.bold,
+                  foreground: Paint()
+                    ..shader = appColors.shader,
+                ),
+              ),
+            ),
+            Text(
+              '°C',
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                foreground: Paint()
+                  ..shader = appColors.shader,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          state.currentWeatherStatus, // Data from BLoC state
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 20,
+          ),
+        ),
+        Text(
+          state.currentDate, // Data from BLoC state
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 20,
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Divider(
+            color: Colors.white70,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              WeatherItem(
+                  value: state.windSpeed, // Data from BLoC state
+                  unit: ' km/h',
+                  imageURL: 'assets/images/windspeed.png'),
+              WeatherItem(
+                  value: state.humidity, // Data from BLoC state
+                  unit: ' %',
+                  imageURL: 'assets/images/humidity.png'),
+              WeatherItem(
+                  value: state.cloud, // Data from BLoC state
+                  unit: ' %',
+                  imageURL: 'assets/images/cloud.png'),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper method for the hourly forecast section
+  Widget _buildForecastSection(WeatherLoaded state) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text(
+              'Today',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            GestureDetector(
+              onTap: () {
+                if (state.dailyWeatherForecast.isNotEmpty) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          DetailsScreen(
+                            dailyWeatherForecast: state.dailyWeatherForecast,
+                          ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Weather data not loaded yet. Please wait.')),
+                  );
+                }
+              },
+              child: Text(
+                'Forecasts',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16,
+                  color: AppColors.primaryColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            itemCount: state.hourlyWeatherForecast.length,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemBuilder: (context, index) {
+              final hourlyData =
+              state.hourlyWeatherForecast[index] as Map<String, dynamic>;
+
+              DateTime forecastDateTime = DateTime.parse(hourlyData['time']);
+              String formattedTime = DateFormat('h a').format(forecastDateTime);
+              int hourlyTemp = (hourlyData['temp_c'] as double).toInt();
+              String hourlyIcon =
+                  "${(hourlyData['condition']['text'] as String).replaceAll(
+                  ' ', '').toLowerCase()}.png";
+              bool isCurrentHour = forecastDateTime.hour == DateTime
+                  .now()
+                  .hour;
+
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                margin: const EdgeInsets.only(right: 20),
+                width: 65,
+                decoration: BoxDecoration(
+                  color: isCurrentHour ? Colors.white : AppColors.primaryColor,
+                  borderRadius: const BorderRadius.all(Radius.circular(50)),
+                  boxShadow: [
+                    BoxShadow(
+                      offset: const Offset(0, 1),
+                      blurRadius: 5,
+                      color: AppColors.primaryColor.withValues(alpha: .5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      formattedTime,
+                      style: TextStyle(
+                        fontSize: 17,
+                        color: AppColors.greyColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Image.asset('assets/images/$hourlyIcon', width: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          hourlyTemp.toString(),
+                          style: TextStyle(
+                            color: AppColors.greyColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '°C',
+                          style: TextStyle(
+                            color: AppColors.greyColor,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            fontFeatures: const [
+                              FontFeature.enable('subs'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Placeholder content for when data is loading or not available
+  Widget _buildPlaceholderContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+                width: 40, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+            Row(
+              children: [
+                Container(
+                    width: 20,
+                    height: 20,
+                    color: Colors.white.withValues(alpha: 0.3)),
+                const SizedBox(width: 4),
+                Container(
+                    width: 80,
+                    height: 16,
+                    color: Colors.white.withValues(alpha: 0.3)),
+                Container(
+                    width: 24,
+                    height: 24,
+                    color: Colors.white.withValues(alpha: 0.3)),
+              ],
+            ),
+            Container(
+                width: 40, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+          ],
+        ),
+        Container(
+            width: 160, height: 160, color: Colors.white.withValues(alpha: 0.3)),
+        Container(
+            width: 120, height: 80, color: Colors.white.withValues(alpha: 0.3)),
+        Container(
+            width: 150, height: 20, color: Colors.white.withValues(alpha: 0.3)),
+        Container(
+            width: 200, height: 20, color: Colors.white.withValues(alpha: 0.3)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Divider(
+            color: Colors.white.withValues(alpha: 0.3),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 40),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                  width: 60, height: 60, color: Colors.white.withValues(alpha: 0.3)),
+              Container(
+                  width: 60, height: 60, color: Colors.white.withValues(alpha: 0.3)),
+              Container(
+                  width: 60, height: 60, color: Colors.white.withValues(alpha: 0.3)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlaceholderForecastSection() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+                width: 80,
+                height: 20,
+                color: Colors.black.withValues(alpha: 0.1)),
+            Container(
+                width: 100,
+                height: 20,
+                color: Colors.blue.withValues(alpha: 0.1)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 140,
+          child: ListView.builder(
+            itemCount: 5, // Show a few placeholder items
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            itemBuilder: (context, index) {
+              return Container(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                margin: const EdgeInsets.only(right: 20),
+                width: 65,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryColor.withValues(alpha: 0.3),
+                  borderRadius: const BorderRadius.all(Radius.circular(50)),
+                  boxShadow: [
+                    BoxShadow(
+                      offset: const Offset(0, 1),
+                      blurRadius: 5,
+                      color: AppColors.primaryColor.withValues(alpha: .2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                        width: 40,
+                        height: 17,
+                        color: Colors.white.withValues(alpha: 0.3)),
+                    Container(
+                        width: 20,
+                        height: 20,
+                        color: Colors.white.withValues(alpha: 0.3)),
+                    Container(
+                        width: 40,
+                        height: 17,
+                        color: Colors.white.withValues(alpha: 0.3)),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
