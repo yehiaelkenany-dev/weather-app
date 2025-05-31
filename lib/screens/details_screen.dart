@@ -4,7 +4,7 @@ import 'package:weather_app/components/weather_item.dart';
 import 'package:weather_app/constants.dart';
 
 class DetailsScreen extends StatefulWidget {
-  final dailyWeatherForecast;
+  final dynamic dailyWeatherForecast;
 
   const DetailsScreen({super.key, this.dailyWeatherForecast});
 
@@ -17,10 +17,23 @@ class _DetailsScreenState extends State<DetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final _deviceHeight = MediaQuery.sizeOf(context).height;
-    final _deviceWidth = MediaQuery.sizeOf(context).width;
+    final deviceHeight = MediaQuery.sizeOf(context).height;
+    final deviceWidth = MediaQuery.sizeOf(context).width;
 
-    Map<String, dynamic> _getWeatherForecast(int index) {
+    Map<String, dynamic> getWeatherForecast(int index) {
+      if (widget.dailyWeatherForecast == null || index < 0 || index >= widget.dailyWeatherForecast.length) {
+        return {
+          'maxWindSpeed': 0,
+          'avgHumidity': 0,
+          'chanceOfRain': 0,
+          'forecastDate': 'N/A',
+          'weatherName': 'N/A',
+          'weatherIcon': 'unknown.png',
+          'minTemperature': 0,
+          'maxTemperature': 0,
+        };
+      }
+
       final dayData = widget.dailyWeatherForecast[index]['day'];
       final conditionData = dayData['condition'];
       int maxWindSpeed = (dayData['maxwind_kph'] as double).toInt();
@@ -36,10 +49,45 @@ class _DetailsScreenState extends State<DetailsScreen> {
       String weatherIcon =
           '${weatherName.replaceAll(' ', '').toLowerCase()}.png';
 
+      final List<String> availableIcons = [
+        'clear.png',
+        'cloud.png',
+        'cloudy.png',
+        'fog.png',
+        'heavycloud.png',
+        'heavyrain.png',
+        'humidity.png',
+        'lightdrizzle.png',
+        'lightrain.png',
+        'lightrainshower.png',
+        // 'menu.png' - not a weather icon
+        'mist.png',
+        'moderateorheavyrainshower.png',
+        'moderateorheavyrainwiththunder.png',
+        'moderaterain.png',
+        'moderaterainattimes.png',
+        'overcast.png',
+        'partlycloudy.png',
+        'patchylightdrizzle.png',
+        'patchylightrain.png',
+        'patchylightrainwiththunder.png',
+        'patchyrainnearby.png',
+        'patchyrainpossible.png',
+        // 'pin.png' - not a weather icon
+        // 'profile.png' - not a weather icon
+        'sunny.png',
+        'thunderyoutbreakspossible.png',
+        'unknown.png',
+        // 'windspeed.png' - not a weather icon
+      ];
+      if (!availableIcons.contains(weatherIcon)) {
+        weatherIcon = 'unknown.png';
+      }
+
       int minTemperature = (dayData['mintemp_c'] as double).toInt();
       int maxTemperature = (dayData['maxtemp_c'] as double).toInt();
 
-      Map<String, dynamic> forecastData = {
+      return {
         'maxWindSpeed': maxWindSpeed,
         'avgHumidity': avgHumidity,
         'chanceOfRain': chanceOfRain,
@@ -49,10 +97,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
         'minTemperature': minTemperature,
         'maxTemperature': maxTemperature,
       };
-
-      return forecastData;
     }
-
     return Scaffold(
       backgroundColor: AppColors.primaryColor,
       appBar: AppBar(
@@ -65,7 +110,6 @@ class _DetailsScreenState extends State<DetailsScreen> {
             padding: const EdgeInsets.only(right: 8.0),
             child: IconButton(
               onPressed: () {
-                print("Settings Tapped");
               },
               icon: const Icon(Icons.settings),
             ),
@@ -80,9 +124,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
             bottom: 0,
             left: 0,
             child: Container(
-              height: _deviceHeight * .75,
-              width: _deviceWidth,
-              decoration: BoxDecoration(
+              height: deviceHeight * .75,
+              width: deviceWidth,
+              decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(50),
@@ -98,7 +142,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                     left: 20,
                     child: Container(
                       height: 300,
-                      width: _deviceWidth * .7,
+                      width: deviceWidth * .7,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
@@ -108,7 +152,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                         boxShadow: [
                           BoxShadow(
                             color: Colors.blue.withValues(alpha: .1),
-                            offset: Offset(0, 25),
+                            offset: const Offset(0, 25),
                             blurRadius: 3,
                             spreadRadius: -10,
                           ),
@@ -122,7 +166,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             top: 10,
                             left: 10,
                             child: Image.asset(
-                              'assets/images/${_getWeatherForecast(0)['weatherIcon']}',
+                              'assets/images/${getWeatherForecast(0)['weatherIcon']}',
                               width: 150,
                             ),
                           ),
@@ -132,8 +176,8 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(bottom: 10),
                               child: Text(
-                                _getWeatherForecast(0)['weatherName'],
-                                style: TextStyle(
+                                getWeatherForecast(0)['weatherName'],
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
@@ -143,9 +187,9 @@ class _DetailsScreenState extends State<DetailsScreen> {
                           ),
                           Positioned(
                             bottom: 15,
-                            left: 20, // momken 40
+                            left: 20,
                             child: Container(
-                              width: _deviceWidth * .8,
+                              width: deviceWidth * .8,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 20,
                               ),
@@ -156,21 +200,21 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                   WeatherItem(
                                     unit: "km/h",
                                     imageURL: 'assets/images/windspeed.png',
-                                    value: _getWeatherForecast(
+                                    value: getWeatherForecast(
                                       0,
                                     )['maxWindSpeed'],
                                   ),
                                   WeatherItem(
                                     unit: " %",
                                     imageURL: 'assets/images/humidity.png',
-                                    value: _getWeatherForecast(
+                                    value: getWeatherForecast(
                                       0,
                                     )['avgHumidity'],
                                   ),
                                   WeatherItem(
                                     unit: " km/h",
                                     imageURL: 'assets/images/lightrain.png',
-                                    value: _getWeatherForecast(
+                                    value: getWeatherForecast(
                                       0,
                                     )['chanceOfRain'],
                                   ),
@@ -185,7 +229,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _getWeatherForecast(
+                                  getWeatherForecast(
                                     0,
                                   )['maxTemperature'].toString(),
                                   style: TextStyle(
@@ -212,276 +256,104 @@ class _DetailsScreenState extends State<DetailsScreen> {
                             left: 0,
                             child: SizedBox(
                               height: 400,
-                              width: _deviceWidth * .9,
-                              child: ListView(
-                                physics: const BouncingScrollPhysics(),
-                                children: [
-                                  Card(
-                                    elevation: 3.0,
-                                    margin: const EdgeInsets.only(bottom: 20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceAround,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                _getWeatherForecast(
-                                                  0,
-                                                )['forecastDate'],
-                                                style: const TextStyle(
-                                                  color: Color(0xFF6696F5),
-                                                  fontWeight: FontWeight.w600,
+                              width: deviceWidth * .9,
+                                child: ListView.builder(
+                                  physics: const BouncingScrollPhysics(),
+                                  itemCount: widget.dailyWeatherForecast?.length ?? 0, // Ensure null-safety
+                                  itemBuilder: (context, index) {
+                                    if (index == 0) {
+                                      return const SizedBox.shrink();
+                                    }
 
-                                                ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(0)['minTemperature']}°C",
-                                                  style: TextStyle(
-                                                    color: AppColors.greyColor,
-                                                    fontSize: 30,
+                                    final forecast = getWeatherForecast(index);
+                                    return Card(
+                                      elevation: 3.0,
+                                      margin: const EdgeInsets.only(bottom: 20, left: 20, right: 20),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(8.0),
+                                        child: Column(
+                                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                          children: [
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              crossAxisAlignment: CrossAxisAlignment.center,
+                                              children: [
+                                                Text(
+                                                  forecast['forecastDate'],
+                                                  style: const TextStyle(
+                                                    color: Color(0xFF6696F5),
                                                     fontWeight: FontWeight.w600,
                                                   ),
-                                                  )
-                                                ],
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(0)['maxTemperature']}°C",
-                                                    style: TextStyle(
-                                                      color: AppColors.blackColor,
-                                                      fontSize: 30,
-                                                      fontWeight: FontWeight.w600,
-                                                    ),
-                                                  )
-                                                ],
-                                              )
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10,),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Image.asset('assets/images/${_getWeatherForecast(0)['weatherIcon']}', width: 30,),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Text(_getWeatherForecast(0)['weatherName'], style: TextStyle(
-                                                    fontSize: 16,
-                                                    color: Colors.grey
-                                                  ),)
-                                                ],
-                                              ),
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Text('${_getWeatherForecast(0)['chanceOfRain']} %', style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.grey
-                                                  ),),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Image.asset('assets/images/lightrain.png', width: 30,),
-
-
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  Card(
-                                    elevation: 3.0,
-                                    margin: const EdgeInsets.only(bottom: 20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                _getWeatherForecast(
-                                                  1,
-                                                )['forecastDate'],
-                                                style: const TextStyle(
-                                                  color: Color(0xFF6696F5),
-                                                  fontWeight: FontWeight.w600,
-
                                                 ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(1)['minTemperature']}°C",
-                                                    style: TextStyle(
-                                                      color: AppColors.greyColor,
-                                                      fontSize: 30,
-                                                      fontWeight: FontWeight.w600,
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      "${forecast['minTemperature']}°C",
+                                                      style: TextStyle(
+                                                        color: AppColors.greyColor,
+                                                        fontSize: 20,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
                                                     ),
-                                                  )
-                                                ],
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(1)['maxTemperature']}°C",
-                                                    style: TextStyle(
-                                                      color: AppColors.blackColor,
-                                                      fontSize: 30,
-                                                      fontWeight: FontWeight.w600,
+                                                    const Text(" / ", style: TextStyle(color: Colors.grey, fontSize: 20)),
+                                                    Text(
+                                                      "${forecast['maxTemperature']}°C",
+                                                      style: TextStyle(
+                                                        color: AppColors.blackColor,
+                                                        fontSize: 20,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
                                                     ),
-                                                  )
-                                                ],
-                                              )
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10,),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Image.asset('assets/images/${_getWeatherForecast(1)['weatherIcon']}', width: 30,),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Text(_getWeatherForecast(1)['weatherName'], style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.grey
-                                                  ),)
-                                                ],
-                                              ),
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Text('${_getWeatherForecast(1)['chanceOfRain']} %', style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.grey
-                                                  ),),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Image.asset('assets/images/lightrain.png', width: 30,),
-
-
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  Card(
-                                    elevation: 3.0,
-                                    margin: const EdgeInsets.only(bottom: 20),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(8.0),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                        children: [
-                                          Row(
-                                            mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                            children: [
-                                              Text(
-                                                _getWeatherForecast(
-                                                  2,
-                                                )['forecastDate'],
-                                                style: const TextStyle(
-                                                  color: Color(0xFF6696F5),
-                                                  fontWeight: FontWeight.w600,
-
+                                                  ],
                                                 ),
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(2)['minTemperature']}°C",
-                                                    style: TextStyle(
-                                                      color: AppColors.greyColor,
-                                                      fontSize: 30,
-                                                      fontWeight: FontWeight.w600,
+                                              ],
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Image.asset(
+                                                      'assets/images/${forecast['weatherIcon']}',
+                                                      width: 30,
                                                     ),
-                                                  )
-                                                ],
-                                              ),
-                                              Row(
-                                                children: [
-                                                  Text("${_getWeatherForecast(2)['maxTemperature']}°C",
-                                                    style: TextStyle(
-                                                      color: AppColors.blackColor,
-                                                      fontSize: 30,
-                                                      fontWeight: FontWeight.w600,
+                                                    const SizedBox(width: 5),
+                                                    Text(
+                                                      forecast['weatherName'],
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.grey,
+                                                      ),
                                                     ),
-                                                  )
-                                                ],
-                                              )
-                                            ],
-                                          ),
-                                          const SizedBox(height: 10,),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Image.asset('assets/images/${_getWeatherForecast(2)['weatherIcon']}', width: 30,),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Text(_getWeatherForecast(2)['weatherName'], style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.grey
-                                                  ),)
-                                                ],
-                                              ),
-                                              Row(
-                                                mainAxisAlignment: MainAxisAlignment.center,
-                                                children: [
-                                                  Text('${_getWeatherForecast(2)['chanceOfRain']} %', style: TextStyle(
-                                                      fontSize: 16,
-                                                      color: Colors.grey
-                                                  ),),
-                                                  const SizedBox(
-                                                    width: 5,
-                                                  ),
-                                                  Image.asset('assets/images/lightrain.png', width: 30,),
-
-
-                                                ],
-                                              ),
-                                            ],
-                                          ),
-
-                                        ],
+                                                  ],
+                                                ),
+                                                Row(
+                                                  mainAxisAlignment: MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      '${forecast['chanceOfRain']} %',
+                                                      style: const TextStyle(
+                                                        fontSize: 16,
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 5),
+                                                    Image.asset(
+                                                      'assets/images/lightrain.png',
+                                                      width: 30,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                    );
+                                  },
+                                ),
                             ),
                           ),
                         ],

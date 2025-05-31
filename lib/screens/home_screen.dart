@@ -21,26 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final AppColors appColors = AppColors();
   final TextEditingController _cityController = TextEditingController();
   bool _showBlurOverlay = true;
-  Timer? _blurTimer; // Timer to control the duration of the blur
-  // Removed Api _api declaration here, as it's provided by RepositoryProvider
-  // in main.dart and read via context.
-
-  // Removed old state variables (location, temperature, etc.) and fetchWeatherData method
-  // as they are now managed by WeatherBloc.
-
-  // The getShortLocationName is still useful as a static helper
-  // static String getShortLocationName(String s) {
-  //   List<String> wordList = s.split(" ");
-  //   if (wordList.isNotEmpty) {
-  //     if (wordList.length > 1) {
-  //       return "${wordList[0]} ${wordList[1]}";
-  //     } else {
-  //       return wordList[0];
-  //     }
-  //   } else {
-  //     return " ";
-  //   }
-  // }
+  Timer? _blurTimer;
 
   @override
   void initState() {
@@ -84,11 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 onChanged: (searchText) {
                   if (searchText.isNotEmpty) {
                     context.read<WeatherBloc>().add(FetchWeather(searchText));
-                    // When a new search is initiated, you might want to show the blur again
-                    // and reset the timer.
                     setState(() {
                       _showBlurOverlay = true;
-                      _blurTimer?.cancel(); // Cancel previous timer
+                      _blurTimer?.cancel();
                       _blurTimer = Timer(const Duration(seconds: 2), () {
                         if (mounted) {
                           setState(() {
@@ -125,8 +104,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _blurTimer?.cancel(); // Cancel the timer to prevent memory leaks
-    _cityController.dispose(); // Don't forget to dispose controllers
+    _blurTimer?.cancel();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -145,15 +124,8 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.white,
       body: BlocBuilder<WeatherBloc, WeatherState>(
         builder: (context, state) {
-          // You can still use isLoading for other UI elements if needed,
-          // but for the blur, we'll rely on _showBlurOverlay now.
-          // bool isLoading = state is WeatherLoading || state is WeatherInitial;
-
-          // If the state changes to WeatherLoaded, and the timer hasn't already hidden the blur,
-          // you might want to hide it immediately, or let the timer run its course.
-          // For a smoother transition, letting the timer run is fine, or you could do:
           if (state is WeatherLoaded && _showBlurOverlay) {
-            _blurTimer?.cancel(); // Stop the timer if data loads faster
+            _blurTimer?.cancel();
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
@@ -162,11 +134,8 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             });
           }
-
-
           return Stack(
             children: [
-              // Main content of the screen
               Container(
                 height: deviceHeight,
                 width: deviceWidth,
@@ -205,7 +174,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              // Blur effect overlay (only show if _showBlurOverlay is true)
               if (_showBlurOverlay) // Condition now uses _showBlurOverlay
                 Positioned.fill(
                   child: BackdropFilter(
@@ -214,8 +182,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       sigmaY: 5.0, // Adjust blur intensity
                     ),
                     child: Container(
-                      color: Colors.black.withValues(alpha: 0.3), // Optional: add a slight dark overlay
-                      // Removed alignment and CircularProgressIndicator
+                      color: Colors.black.withValues(alpha: 0.3),
                     ),
                   ),
                 ),
@@ -226,7 +193,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Helper method for the main weather display
   Widget _buildWeatherContent(WeatherLoaded state, double deviceWidth) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -247,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Image.asset("assets/images/pin.png", width: 20),
                 const SizedBox(width: 4),
                 Text(
-                  state.location, // Data from BLoC state
+                  state.location,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -263,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: Image.asset(
-                'assets/images/profile.png',
+                'assets/images/profile.jpg',
                 width: 40,
                 height: 40,
               ),
@@ -273,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
         SizedBox(
           height: 160,
           child: Image.asset(
-              "assets/images/${state.weatherIcon}"), // Data from BLoC state
+              "assets/images/${state.weatherIcon}"),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -282,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 8.0),
               child: Text(
-                state.temperature.toString(), // Data from BLoC state
+                state.temperature.toString(),
                 style: TextStyle(
                   fontSize: 80,
                   fontWeight: FontWeight.bold,
@@ -303,14 +269,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         Text(
-          state.currentWeatherStatus, // Data from BLoC state
+          state.currentWeatherStatus,
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 20,
           ),
         ),
         Text(
-          state.currentDate, // Data from BLoC state
+          state.currentDate,
           style: const TextStyle(
             color: Colors.white70,
             fontSize: 20,
@@ -328,15 +294,15 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               WeatherItem(
-                  value: state.windSpeed, // Data from BLoC state
+                  value: state.windSpeed,
                   unit: ' km/h',
                   imageURL: 'assets/images/windspeed.png'),
               WeatherItem(
-                  value: state.humidity, // Data from BLoC state
+                  value: state.humidity,
                   unit: ' %',
                   imageURL: 'assets/images/humidity.png'),
               WeatherItem(
-                  value: state.cloud, // Data from BLoC state
+                  value: state.cloud,
                   unit: ' %',
                   imageURL: 'assets/images/cloud.png'),
             ],
@@ -346,7 +312,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Helper method for the hourly forecast section
   Widget _buildForecastSection(WeatherLoaded state) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -476,7 +441,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Placeholder content for when data is loading or not available
   Widget _buildPlaceholderContent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
