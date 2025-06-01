@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:weather_app/config/app_config.dart';
 
 class AppColors {
   static const primaryColor = Color(0xFF6B9DFC);
@@ -24,6 +25,6 @@ class AppColors {
 }
 
 class AppConstants {
-  static const String apiKey = '8191b4eec2f44ea0bef133713252805';
+  static const String apiKey = AppConfig.apiKey;
   static const String baseUrl = 'https://api.weatherapi.com/v1';
 }
