@@ -28,8 +28,6 @@ A sleek and intuitive mobile application built with Flutter that provides real-t
 
 Here are some screenshots of the WeatherWise app in action:
 
-*(Please replace these placeholders with actual screenshots of your running app. You can link to images hosted online or placed within your repository.)*
-
 #### Home Screen (Current Weather)
 ![Screenshot of the app's home screen showing current weather conditions.](assets/screenshots/1.png)
 
