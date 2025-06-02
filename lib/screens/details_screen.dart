@@ -137,7 +137,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                 clipBehavior: Clip.none,
                 children: [
                   Positioned(
-                    top: -50,
+                    top: -100,
                     right: 20,
                     left: 20,
                     child: Container(
@@ -198,7 +198,7 @@ class _DetailsScreenState extends State<DetailsScreen> {
                                     MainAxisAlignment.spaceBetween,
                                 children: [
                                   WeatherItem(
-                                    unit: "km/h",
+                                    unit: " km/h",
                                     imageURL: 'assets/images/windspeed.png',
                                     value: getWeatherForecast(
                                       0,

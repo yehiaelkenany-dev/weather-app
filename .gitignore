@@ -1,5 +1,7 @@
 # .gitignore
 .env
+/lib/config/app_config.g.dart
+
 
 # Miscellaneous
 *.class

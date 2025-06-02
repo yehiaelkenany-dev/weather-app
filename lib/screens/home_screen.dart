@@ -26,13 +26,12 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Dispatch the initial event to fetch weather for a default location
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WeatherBloc>().add(const FetchWeather('London'));
     });
 
     _blurTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) { // Check if the widget is still mounted before calling setState
+      if (mounted) {
         setState(() {
           _showBlurOverlay = false;
         });
@@ -134,59 +133,61 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             });
           }
-          return Stack(
-            children: [
-              Container(
-                height: deviceHeight,
-                width: deviceWidth,
-                padding: const EdgeInsets.only(top: 70, left: 10, right: 10),
-                color: AppColors.primaryColor.withValues(alpha: .5),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 10, horizontal: 10),
-                      height: deviceHeight * .7,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.linearGradientBlue,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primaryColor.withValues(alpha: .5),
-                            spreadRadius: 5,
-                            blurRadius: 7,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                        borderRadius: BorderRadius.circular(20),
+          return SingleChildScrollView(
+            child: Stack(
+              children: [
+                Container(
+                  height: deviceHeight,
+                  width: deviceWidth,
+                  padding: const EdgeInsets.only(top: 70, left: 10, right: 10),
+                  color: AppColors.primaryColor.withValues(alpha: .5),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 10),
+                        height: deviceHeight * .7,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.linearGradientBlue,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primaryColor.withValues(alpha: .5),
+                              spreadRadius: 5,
+                              blurRadius: 7,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: (state is WeatherLoaded)
+                            ? _buildWeatherContent(state, deviceWidth)
+                            : _buildPlaceholderContent(),
                       ),
-                      child: (state is WeatherLoaded)
-                          ? _buildWeatherContent(state, deviceWidth)
-                          : _buildPlaceholderContent(),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.only(top: 10),
-                      height: deviceHeight * .20,
-                      child: (state is WeatherLoaded)
-                          ? _buildForecastSection(state)
-                          : _buildPlaceholderForecastSection(),
-                    ),
-                  ],
-                ),
-              ),
-              if (_showBlurOverlay) // Condition now uses _showBlurOverlay
-                Positioned.fill(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(
-                      sigmaX: 5.0, // Adjust blur intensity
-                      sigmaY: 5.0, // Adjust blur intensity
-                    ),
-                    child: Container(
-                      color: Colors.black.withValues(alpha: 0.3),
-                    ),
+                      Container(
+                        padding: const EdgeInsets.only(top: 10),
+                        height: deviceHeight * .20,
+                        child: (state is WeatherLoaded)
+                            ? _buildForecastSection(state)
+                            : _buildPlaceholderForecastSection(),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                if (_showBlurOverlay)
+                  Positioned.fill(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(
+                        sigmaX: 5.0,
+                        sigmaY: 5.0,
+                      ),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),
@@ -361,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 140,
+          height: 120,
           child: ListView.builder(
             itemCount: state.hourlyWeatherForecast.length,
             scrollDirection: Axis.horizontal,
